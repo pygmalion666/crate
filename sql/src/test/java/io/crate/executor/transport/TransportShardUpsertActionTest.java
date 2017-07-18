@@ -221,7 +221,8 @@ public class TransportShardUpsertActionTest extends CrateDummyClusterServiceUnit
             .put("ts", 1448274317000L)
             .map();
 
-        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns, Collections.<String, Object>emptyMap(), true);
+        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns,
+            Collections.emptyMap(), true, null);
 
         assertThat(updatedColumns.size(), is(2));
         assertThat((Long) updatedColumns.get("day"), is(1448236800000L));
@@ -235,7 +236,8 @@ public class TransportShardUpsertActionTest extends CrateDummyClusterServiceUnit
             .put("day", 1448236800000L)
             .map();
 
-        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns, Collections.<String, Object>emptyMap(), true);
+        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns,
+            Collections.emptyMap(), true, null);
 
         assertThat(updatedColumns.size(), is(2));
         assertThat((Long) updatedColumns.get("day"), is(1448236800000L));
@@ -255,7 +257,8 @@ public class TransportShardUpsertActionTest extends CrateDummyClusterServiceUnit
             .put("day", 1448274317000L)
             .map();
 
-        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns, updatedGeneratedColumns, true);
+        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns,
+            updatedGeneratedColumns, true, null);
     }
 
     @Test
@@ -269,7 +272,8 @@ public class TransportShardUpsertActionTest extends CrateDummyClusterServiceUnit
             .put("day", 1448274317000L)
             .map();
 
-        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns, updatedGeneratedColumns, false);
+        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns,
+            updatedGeneratedColumns, false, null);
     }
 
     @Test
@@ -291,7 +295,8 @@ public class TransportShardUpsertActionTest extends CrateDummyClusterServiceUnit
             .addGeneratedColumn("arr", new ArrayType(DataTypes.INTEGER), "obj['arr']", false)
             .build(getFunctions());
 
-        transportShardUpsertAction.processGeneratedColumns(docTableInfo, updatedColumns, updatedGeneratedColumns, false);
+        transportShardUpsertAction.processGeneratedColumns(docTableInfo, updatedColumns, updatedGeneratedColumns,
+            false, null);
     }
 
     @Test
@@ -300,7 +305,8 @@ public class TransportShardUpsertActionTest extends CrateDummyClusterServiceUnit
             .put("user.name", new BytesRef("zoo"))
             .map();
 
-        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns, Collections.<String, Object>emptyMap(), true);
+        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns,
+            Collections.emptyMap(), true, null);
 
         assertThat(updatedColumns.size(), is(2));
         assertThat((BytesRef) updatedColumns.get("name"), is(new BytesRef("zoobar")));
@@ -312,7 +318,8 @@ public class TransportShardUpsertActionTest extends CrateDummyClusterServiceUnit
             .put("user", MapBuilder.<String, Object>newMapBuilder().put("name", new BytesRef("zoo")).map())
             .map();
 
-        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns, Collections.<String, Object>emptyMap(), true);
+        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns,
+            Collections.emptyMap(), true, null);
 
         assertThat(updatedColumns.size(), is(2));
         assertThat((BytesRef) updatedColumns.get("name"), is(new BytesRef("zoobar")));
@@ -324,7 +331,8 @@ public class TransportShardUpsertActionTest extends CrateDummyClusterServiceUnit
             .put("user", MapBuilder.<String, Object>newMapBuilder().put("age", 35).map())
             .map();
 
-        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns, Collections.<String, Object>emptyMap(), true);
+        transportShardUpsertAction.processGeneratedColumns(generatedColumnTableInfo, updatedColumns,
+            Collections.emptyMap(), true, null);
 
         assertThat(updatedColumns.size(), is(2));
         assertThat((BytesRef) updatedColumns.get("name"), is(new BytesRef("bar")));
@@ -380,7 +388,7 @@ public class TransportShardUpsertActionTest extends CrateDummyClusterServiceUnit
 
     @Test
     public void testValidateMapping() throws Exception {
-        /**
+        /*
          * create a mapping which contains an invalid column name
          * {
          *      "valid": {},

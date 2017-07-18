@@ -75,8 +75,10 @@ public class InputFactory {
 
     public <T extends Input<?>> Context<T> ctxForRefs(ReferenceResolver<? extends T> referenceResolver) {
         List<T> expressions = new ArrayList<>();
-        return new Context<>(expressions, new RefVisitor<>(
-            functions, new GatheringRefResolver<>(expressions::add, referenceResolver)));
+        return new Context<>(expressions,
+            new RefVisitor<>(
+                functions,
+                new GatheringRefResolver<>(expressions::add, referenceResolver)));
     }
 
     public Context<CollectExpression<Row, ?>> ctxForInputColumns() {
