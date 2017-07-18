@@ -205,8 +205,9 @@ Some Examples::
 =======
 
 The ``sum`` aggregation function returns the sum of all the values in a column
-that are not ``NULL`` as a double value. Its single argument is the column name
-of a primitive numeric column. ``sum`` can not be used on other column types.
+that are not ``NULL``. The return type depends on the argument type.
+Its single argument is the column name of a primitive numeric column.
+``sum`` can not be used on other column types.
 
 ::
 
@@ -215,9 +216,9 @@ of a primitive numeric column. ``sum`` can not be used on other column types.
     +---------------+-------------+
     | sum(position) | kind        |
     +---------------+-------------+
-    | 10.0          | Star System |
-    | 13.0          | Galaxy      |
-    | 15.0          | Planet      |
+    | 10            | Star System |
+    | 13            | Galaxy      |
+    | 15            | Planet      |
     +---------------+-------------+
     SELECT 3 rows in set (... sec)
 
@@ -227,7 +228,7 @@ of a primitive numeric column. ``sum`` can not be used on other column types.
     +--------------+
     | position_sum |
     +--------------+
-    | 38.0         |
+    | 38           |
     +--------------+
     SELECT 1 row in set (... sec)
 
