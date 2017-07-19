@@ -20,18 +20,27 @@
  * agreement.
  */
 
-package io.crate.user;
+package io.crate.operation.auth;
 
-import io.crate.operation.auth.AlwaysOKNullAuthentication;
-import io.crate.operation.auth.Authentication;
-import io.crate.operation.user.UserManager;
-import org.elasticsearch.common.inject.AbstractModule;
+import io.crate.protocols.postgres.ConnectionProperties;
+import io.crate.test.integration.CrateUnitTest;
+import org.junit.Test;
 
-public class UserFallbackModule extends AbstractModule {
+import static org.hamcrest.core.Is.is;
 
-    @Override
-    protected void configure() {
-        bind(UserManager.class).to(StubUserManager.class);
-        bind(Authentication.class).to(AlwaysOKNullAuthentication.class);
+/**
+ * Tests authentication methods of the core module (disabled user management)
+ */
+public class AuthenticationMethodTest extends CrateUnitTest {
+
+    @Test
+    public void testAlwaysOKNullAuthentication() throws Exception {
+        AlwaysOKNullAuthentication alwaysOkNullAuth = new AlwaysOKNullAuthentication();
+
+        ConnectionProperties connectionProperties = new ConnectionProperties(null, Protocol.POSTGRES, null);
+        AuthenticationMethod alwaysOkNullAuthMethod = alwaysOkNullAuth.resolveAuthenticationType("crate", connectionProperties);
+
+        assertThat(alwaysOkNullAuthMethod.name(), is("alwaysOkNull"));
+        assertNull(alwaysOkNullAuthMethod.authenticate("crate", connectionProperties));
     }
 }

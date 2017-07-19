@@ -31,11 +31,14 @@ import java.util.Collections;
 
 import static org.hamcrest.core.Is.is;
 
+/**
+ * Tests authentication methods of user management module
+ */
 public class AuthenticationMethodTest extends CrateUnitTest {
 
     @Test
     public void testTrustAuthentication() throws Exception {
-        TrustAuthentication trustAuth = new TrustAuthentication(userName -> {
+        TrustAuthenticationMethod trustAuth = new TrustAuthenticationMethod(userName -> {
             if (userName.equals("crate")) {
                 return new User("crate", Collections.emptySet(), Collections.emptySet());
             }
@@ -48,5 +51,24 @@ public class AuthenticationMethodTest extends CrateUnitTest {
 
         expectedException.expectMessage("trust authentication failed for user \"cr8\"");
         trustAuth.authenticate("cr8", connectionProperties);
+    }
+
+    @Test
+    public void testAlwaysOKAuthentication() throws Exception {
+        AlwaysOKAuthentication alwaysOkAuth = new AlwaysOKAuthentication(userName -> {
+            if (userName.equals("crate")) {
+                return new User("crate", Collections.emptySet(), Collections.emptySet());
+            }
+            return null;
+        });
+
+        ConnectionProperties connectionProperties = new ConnectionProperties(null, Protocol.POSTGRES, null);
+        AuthenticationMethod alwaysOkAuthMethod = alwaysOkAuth.resolveAuthenticationType("crate", connectionProperties);
+
+        assertThat(alwaysOkAuthMethod.name(), is("alwaysOk"));
+        assertThat(alwaysOkAuthMethod.authenticate("crate", connectionProperties).name(), is("crate"));
+
+        expectedException.expectMessage("authentication failed for user \"cr8\"");
+        alwaysOkAuthMethod.authenticate("cr8", connectionProperties);
     }
 }

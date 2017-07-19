@@ -27,6 +27,9 @@ Changes
 Fixes
 =====
 
+ - The user that gets provided by the client on connect is used as current user
+   if host based authentication is disabled.
+ 
  - Dropping an empty partitioned table did not drop related table privileges.
 
  - Implemented ``NOT NULL`` constraint validation for nested object columns,
