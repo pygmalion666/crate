@@ -27,6 +27,10 @@ Changes
 Fixes
 =====
 
+ - Fixed a race condition which made it possible to create new columns in a
+   partition of a partitioned table that didn't match the type of the same
+   column of sibling partitions.
+
  - Dropping an empty partitioned table did not drop related table privileges.
 
  - Implemented ``NOT NULL`` constraint validation for nested object columns,
