@@ -65,6 +65,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +73,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class ManyTableConsumer implements Consumer {
 
@@ -93,20 +95,31 @@ public class ManyTableConsumer implements Consumer {
      * allows the most join condition push downs (assuming that a left-based tree is built later on)
      *
      * @param relations               all relations, e.g. [t1, t2, t3, t3]
-     * @param implicitJoinedRelations contains all relations that have a join condition e.g. {{t1, t2}, {t2, t3}}
+     * @param explicitJoinedRelations contains all relations that have an explicit join condition
+     * @param implicitJoinedRelations contains all relations that have an implicit join condition
+     *                                e.g. {{t1, t2}, {t2, t3}}
      * @param joinPairs               contains a list of {@link JoinPair}.
      * @param preSorted               a ordered subset of the relations. The result will start with those relations.
      *                                E.g. [t3] - This would cause the result to start with [t3]
      */
     static Collection<QualifiedName> orderByJoinConditions(Collection<QualifiedName> relations,
+                                                           Set<? extends Set<QualifiedName>> explicitJoinedRelations,
                                                            Set<? extends Set<QualifiedName>> implicitJoinedRelations,
                                                            List<JoinPair> joinPairs,
                                                            Collection<QualifiedName> preSorted) {
         if (relations.size() == preSorted.size()) {
             return preSorted;
         }
-        if (relations.size() == 2 || (joinPairs.isEmpty() && implicitJoinedRelations.isEmpty())) {
+        if (relations.size() == 2 ||
+            (joinPairs.isEmpty() && explicitJoinedRelations.isEmpty() && implicitJoinedRelations.isEmpty())) {
             LinkedHashSet<QualifiedName> qualifiedNames = new LinkedHashSet<>(preSorted);
+            qualifiedNames.addAll(relations);
+            return qualifiedNames;
+        }
+        if (preSorted.isEmpty()) {
+            Set<QualifiedName> qualifiedNames = new LinkedHashSet<>(preSorted);
+            qualifiedNames.addAll(explicitJoinedRelations.stream().flatMap(Collection::stream).collect(Collectors.toList()));
+            qualifiedNames.addAll(implicitJoinedRelations.stream().flatMap(Collection::stream).collect(Collectors.toList()));
             qualifiedNames.addAll(relations);
             return qualifiedNames;
         }
@@ -117,13 +130,11 @@ public class ManyTableConsumer implements Consumer {
         Set<QualifiedName> outerJoinRelations = JoinPairs.outerJoinRelations(joinPairs);
         Collection<QualifiedName> bestOrder = null;
         int best = -1;
-        List<JoinPair> currentPermutationJoinPairs = new ArrayList<>(joinPairs.size());
         outerloop:
         for (List<QualifiedName> permutation : Collections2.permutations(relations)) {
             if (!preSorted.equals(permutation.subList(0, preSorted.size()))) {
                 continue;
             }
-            currentPermutationJoinPairs.clear();
             int joinPushDowns = 0;
             for (int i = 0; i < permutation.size() - 1; i++) {
                 QualifiedName a = permutation.get(i);
@@ -139,14 +150,16 @@ public class ManyTableConsumer implements Consumer {
                         pair.clear();
                         pair.add(a);
                         pair.add(b);
-                        joinPushDowns += implicitJoinedRelations.contains(pair) ? 1 : 0;
-                        currentPermutationJoinPairs.add(JoinPair.crossJoin(a, b));
+                        joinPushDowns += implicitJoinedRelations.contains(pair) ||
+                                         explicitJoinedRelations.contains(pair)? 1 : 0;
                     }
                 } else {
-                    if (JoinPairs.joinConditionIncludesRelations(currentPermutationJoinPairs, joinPair)) {
-                        joinPushDowns += 1;
-                    }
-                    currentPermutationJoinPairs.add(JoinPair.crossJoin(a, b));
+                    pair.clear();
+                    pair.add(a);
+                    pair.add(b);
+                    joinPushDowns +=
+                        implicitJoinedRelations.contains(pair) ||
+                        explicitJoinedRelations.contains(pair) ? 1 : 0;
                 }
             }
             if (joinPushDowns == relations.size() - 1) {
@@ -174,14 +187,21 @@ public class ManyTableConsumer implements Consumer {
         return orderByOrder;
     }
 
-    private static Collection<QualifiedName> getOrderedRelationNames(MultiSourceSelect statement,
-                                                                     Set<? extends Set<QualifiedName>> relationPairs) {
+    private static Collection<QualifiedName> getOrderedRelationNames(
+        MultiSourceSelect statement,
+        Set<? extends Set<QualifiedName>> explicitJoinConditions,
+        Set<? extends Set<QualifiedName>> implicitJoinConditions) {
         Collection<QualifiedName> orderedRelations = ImmutableList.of();
         Optional<OrderBy> orderBy = statement.querySpec().orderBy();
         if (orderBy.isPresent()) {
             orderedRelations = getNamesFromOrderBy(orderBy.get());
         }
-        return orderByJoinConditions(statement.sources().keySet(), relationPairs, statement.joinPairs(), orderedRelations);
+        return orderByJoinConditions(
+            statement.sources().keySet(),
+            explicitJoinConditions,
+            implicitJoinConditions,
+            statement.joinPairs(),
+            orderedRelations);
     }
 
     /**
@@ -226,7 +246,10 @@ public class ManyTableConsumer implements Consumer {
             mss.querySpec().where(WhereClause.MATCH_ALL);
         }
 
-        Collection<QualifiedName> orderedRelationNames = getOrderedRelationNames(mss, splitQuery.keySet());
+        List<JoinPair> joinPairs = mss.joinPairs();
+        Map<Set<QualifiedName>, Symbol> joinConditionsMap = buildJoinConditionsMap(joinPairs);
+        Collection<QualifiedName> orderedRelationNames =
+            getOrderedRelationNames(mss, joinConditionsMap.keySet(), splitQuery.keySet());
         Iterator<QualifiedName> it = orderedRelationNames.iterator();
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("relations={} orderedRelations={}", mss.sources().keySet(), orderedRelationNames);
@@ -237,10 +260,8 @@ public class ManyTableConsumer implements Consumer {
         QueriedRelation leftRelation = (QueriedRelation) mss.sources().get(leftName);
         QuerySpec leftQuerySpec = leftRelation.querySpec();
         Optional<RemainingOrderBy> remainingOrderBy = mss.remainingOrderBy();
-        List<JoinPair> joinPairs = mss.joinPairs();
         List<TwoTableJoin> twoTableJoinList = new ArrayList<>(orderedRelationNames.size());
         Set<QualifiedName> currentTreeRelationNames = new HashSet<>(orderedRelationNames.size());
-        Map<Set<QualifiedName>, Symbol> joinConditionsMap = buildJoinConditionsMap(joinPairs);
         currentTreeRelationNames.add(leftName);
         QualifiedName rightName;
         QueriedRelation rightRelation;
@@ -443,7 +464,7 @@ public class ManyTableConsumer implements Consumer {
 
     static TwoTableJoin twoTableJoin(MultiSourceSelect mss) {
         assert mss.sources().size() == 2 : "number of mss.sources() must be 2";
-        Iterator<QualifiedName> it = getOrderedRelationNames(mss, ImmutableSet.of()).iterator();
+        Iterator<QualifiedName> it = getOrderedRelationNames(mss, ImmutableSet.of(), ImmutableSet.of()).iterator();
         QualifiedName left = it.next();
         QualifiedName right = it.next();
         JoinPair joinPair = JoinPairs.ofRelationsWithMergedConditions(left, right, mss.joinPairs(), true);
@@ -564,7 +585,7 @@ public class ManyTableConsumer implements Consumer {
      */
     @VisibleForTesting
     static Map<Set<QualifiedName>, Symbol> buildJoinConditionsMap(List<JoinPair> joinPairs) {
-        Map<Set<QualifiedName>, Symbol> conditionsMap = new HashMap<>();
+        Map<Set<QualifiedName>, Symbol> conditionsMap = new LinkedHashMap<>();
         for (JoinPair joinPair : joinPairs) {
             Symbol condition = joinPair.condition();
             if (condition != null) {
