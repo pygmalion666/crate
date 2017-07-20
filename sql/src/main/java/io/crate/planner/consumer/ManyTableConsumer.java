@@ -91,12 +91,28 @@ public class ManyTableConsumer implements Consumer {
     }
 
     /**
-     * returns a new collection with the same items as relations contains but in an order which
-     * allows the most join condition push downs (assuming that a left-based tree is built later on)
+     * Returns a new collection with the same items as relations contains but in the best possible order.
+     * <p>
+     * Assuming that a left-based tree is built later on:
+     *  IF there is no `ORDER BY`:
+     *      IF no join conditions:
+     *          Don't change the order.
+     *      ELSE:
+     *          Return the relation in the order specified by the join conditions between them.
+     *  ELSE:
+     *      # If an `ORDER BY` exists then the {@param preSorted} list contains the relations that are referenced in the
+     *      # ORDER BY in the order they are used in its symbols.
+     *
+     *      IF all relations contained {@param preSorted}:
+     *          Return the {@param preSorted} ordering
+     *      ELSE:
+     *          Keep the "prefix" {@param preSorted} ordering and then find the best order possible based on the most
+     *          join conditions pushed down in the final left-based join tree.
      *
      * @param relations               all relations, e.g. [t1, t2, t3, t3]
-     * @param explicitJoinedRelations contains all relations that have an explicit join condition
-     * @param implicitJoinedRelations contains all relations that have an implicit join condition
+     * @param explicitJoinedRelations contains all relation pairs that have an explicit join condition
+     *                                e.g. {{t1, t2}, {t2, t3}}
+     * @param implicitJoinedRelations contains all relations pairs that have an implicit join condition
      *                                e.g. {{t1, t2}, {t2, t3}}
      * @param joinPairs               contains a list of {@link JoinPair}.
      * @param preSorted               a ordered subset of the relations. The result will start with those relations.
@@ -107,19 +123,27 @@ public class ManyTableConsumer implements Consumer {
                                                            Set<? extends Set<QualifiedName>> implicitJoinedRelations,
                                                            List<JoinPair> joinPairs,
                                                            Collection<QualifiedName> preSorted) {
+        // All relations already sorted based the `ORDER BY` symbols
         if (relations.size() == preSorted.size()) {
             return preSorted;
         }
+
+        // Only 2 relations or the relations have no join conditions (explicit or implicit) between them
         if (relations.size() == 2 ||
             (joinPairs.isEmpty() && explicitJoinedRelations.isEmpty() && implicitJoinedRelations.isEmpty())) {
             LinkedHashSet<QualifiedName> qualifiedNames = new LinkedHashSet<>(preSorted);
             qualifiedNames.addAll(relations);
             return qualifiedNames;
         }
+
+        // If no `ORDER BY` present we have no preSort to follow so we return the relations in ordering
+        // obtained by the join conditions (explicit and/or implicit) between them
         if (preSorted.isEmpty()) {
             Set<QualifiedName> qualifiedNames = new LinkedHashSet<>(preSorted);
-            qualifiedNames.addAll(explicitJoinedRelations.stream().flatMap(Collection::stream).collect(Collectors.toList()));
-            qualifiedNames.addAll(implicitJoinedRelations.stream().flatMap(Collection::stream).collect(Collectors.toList()));
+            qualifiedNames.addAll(
+                explicitJoinedRelations.stream().flatMap(Collection::stream).collect(Collectors.toList()));
+            qualifiedNames.addAll(
+                implicitJoinedRelations.stream().flatMap(Collection::stream).collect(Collectors.toList()));
             qualifiedNames.addAll(relations);
             return qualifiedNames;
         }
