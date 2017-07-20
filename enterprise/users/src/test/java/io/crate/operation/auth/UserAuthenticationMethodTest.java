@@ -23,7 +23,6 @@
 package io.crate.operation.auth;
 
 import io.crate.operation.user.User;
-import io.crate.protocols.postgres.ConnectionProperties;
 import io.crate.test.integration.CrateUnitTest;
 import org.junit.Test;
 
@@ -31,10 +30,7 @@ import java.util.Collections;
 
 import static org.hamcrest.core.Is.is;
 
-/**
- * Tests authentication methods of user management module
- */
-public class AuthenticationMethodTest extends CrateUnitTest {
+public class UserAuthenticationMethodTest extends CrateUnitTest {
 
     @Test
     public void testTrustAuthentication() throws Exception {
@@ -46,11 +42,10 @@ public class AuthenticationMethodTest extends CrateUnitTest {
         });
         assertThat(trustAuth.name(), is("trust"));
 
-        ConnectionProperties connectionProperties = new ConnectionProperties(null, Protocol.POSTGRES, null);
-        assertThat(trustAuth.authenticate("crate", connectionProperties).name(), is("crate"));
+        assertThat(trustAuth.authenticate("crate", null).name(), is("crate"));
 
         expectedException.expectMessage("trust authentication failed for user \"cr8\"");
-        trustAuth.authenticate("cr8", connectionProperties);
+        trustAuth.authenticate("cr8", null);
     }
 
     @Test
@@ -62,13 +57,12 @@ public class AuthenticationMethodTest extends CrateUnitTest {
             return null;
         });
 
-        ConnectionProperties connectionProperties = new ConnectionProperties(null, Protocol.POSTGRES, null);
-        AuthenticationMethod alwaysOkAuthMethod = alwaysOkAuth.resolveAuthenticationType("crate", connectionProperties);
+        AuthenticationMethod alwaysOkAuthMethod = alwaysOkAuth.resolveAuthenticationType("crate", null);
 
         assertThat(alwaysOkAuthMethod.name(), is("alwaysOk"));
-        assertThat(alwaysOkAuthMethod.authenticate("crate", connectionProperties).name(), is("crate"));
+        assertThat(alwaysOkAuthMethod.authenticate("crate", null).name(), is("crate"));
 
         expectedException.expectMessage("authentication failed for user \"cr8\"");
-        alwaysOkAuthMethod.authenticate("cr8", connectionProperties);
+        alwaysOkAuthMethod.authenticate("cr8", null);
     }
 }

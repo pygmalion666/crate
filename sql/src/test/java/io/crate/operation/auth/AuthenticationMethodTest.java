@@ -22,25 +22,20 @@
 
 package io.crate.operation.auth;
 
-import io.crate.protocols.postgres.ConnectionProperties;
 import io.crate.test.integration.CrateUnitTest;
 import org.junit.Test;
 
 import static org.hamcrest.core.Is.is;
 
-/**
- * Tests authentication methods of the core module (disabled user management)
- */
 public class AuthenticationMethodTest extends CrateUnitTest {
 
     @Test
     public void testAlwaysOKNullAuthentication() throws Exception {
         AlwaysOKNullAuthentication alwaysOkNullAuth = new AlwaysOKNullAuthentication();
 
-        ConnectionProperties connectionProperties = new ConnectionProperties(null, Protocol.POSTGRES, null);
-        AuthenticationMethod alwaysOkNullAuthMethod = alwaysOkNullAuth.resolveAuthenticationType("crate", connectionProperties);
+        AuthenticationMethod alwaysOkNullAuthMethod = alwaysOkNullAuth.resolveAuthenticationType("crate", null);
 
         assertThat(alwaysOkNullAuthMethod.name(), is("alwaysOkNull"));
-        assertNull(alwaysOkNullAuthMethod.authenticate("crate", connectionProperties));
+        assertNull(alwaysOkNullAuthMethod.authenticate("crate", null));
     }
 }
