@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import io.crate.Constants;
 import io.crate.analyze.AnalyzedColumnDefinition;
 import io.crate.analyze.ConstraintsValidator;
-import io.crate.analyze.symbol.InputColumn;
 import io.crate.analyze.symbol.Symbol;
 import io.crate.data.ArrayRow;
 import io.crate.data.Input;
@@ -299,34 +298,26 @@ public class TransportShardUpsertAction extends TransportShardAction<ShardUpsert
     private List<Input<?>> resolveSymbols(ReferenceResolver<CollectExpression<GetResult, ?>> referenceResolver,
                                           GetResult getResult,
                                           List<? extends Symbol> updateAssignments,
-                                          Object[] insertValues) {
+                                          @Nullable Object[] insertValues) {
 
-        InputFactory.Context<CollectExpression<GetResult, ?>> inputContext =
-            inputFactory.ctxForRefs(referenceResolver);
-        InputFactory.Context<CollectExpression<Row, ?>> inputColContext =
-            inputFactory.ctxForInputColumns();
+        InputFactory.ContextInputAware<CollectExpression<GetResult, ?>> universalContext =
+            inputFactory.ctxForRefsWithInputCols(referenceResolver);
 
         List<Input<?>> updateSymbols = new ArrayList<>();
         for (Symbol symbol : updateAssignments) {
-            if (symbol instanceof InputColumn) {
-                updateSymbols.add(inputColContext.add(symbol));
-            } else {
-                updateSymbols.add(inputContext.add(symbol));
-            }
+            updateSymbols.add(universalContext.add(symbol));
         }
 
-        List<CollectExpression<GetResult, ?>> expressions = inputContext.expressions();
+        List<CollectExpression<GetResult, ?>> expressions = universalContext.expressions();
         for (CollectExpression<GetResult, ?> expression : expressions) {
             expression.setNextRow(getResult);
         }
 
-        if (insertValues != null) {
-            List<CollectExpression<Row, ?>> inputColExpressions = inputColContext.expressions();
-            ArrayRow arrayRow = new ArrayRow();
-            arrayRow.cells(insertValues);
-            for (CollectExpression<Row, ?> rowCollectExpression : inputColExpressions) {
-                rowCollectExpression.setNextRow(arrayRow);
-            }
+        List<CollectExpression<Row, ?>> inputColExpressions = universalContext.inputColExpressions();
+        ArrayRow arrayRow = new ArrayRow();
+        arrayRow.cells(insertValues);
+        for (CollectExpression<Row, ?> rowCollectExpression : inputColExpressions) {
+            rowCollectExpression.setNextRow(arrayRow);
         }
 
         return updateSymbols;
