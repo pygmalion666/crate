@@ -91,7 +91,8 @@ public class TransportSchemaUpdateAction extends TransportMasterNodeAction<Schem
 
     @Override
     protected String executor() {
-        return ThreadPool.Names.GENERIC;
+        // we go async right away
+        return ThreadPool.Names.SAME;
     }
 
     @Override
