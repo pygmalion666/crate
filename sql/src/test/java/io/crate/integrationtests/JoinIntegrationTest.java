@@ -697,7 +697,8 @@ public class JoinIntegrationTest extends SQLTransportIntegrationTest {
 
         refresh();
         execute("select sum(t1.val), avg(t2.id), min(t3.id) from t1 inner join t2 on t1.t2 = t2.id inner join t3 on t2.t3 = t3.id");
-        assertThat(TestingHelpers.printedTable(response.rows()), is("3.69| 2.0| 1\n"));
+        float sum = 0.12f + 1.23f + 2.34f;
+        assertThat(TestingHelpers.printedTable(response.rows()), is(sum +"| 2.0| 1\n"));
     }
 
     @Test
